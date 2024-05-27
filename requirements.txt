@@ -1,5 +1,28 @@
 youtube_transcript_api
+
+# python lib used for creating interactive web appications
 streamlit
+
 google-generativeai
 python-dotenv
 pathlib
+farm-haystack
+streamlit
+# not necessary for this project but can be used to chat with the youtube video
+streamlit_chat  
+
+torch
+
+# python library for transforming senstences into dense vecto representation or embeddings
+# Embeddings contains the semantic meaning of the sentence, hence used for many NLP tasks
+sentence_transformers
+
+#to download the videos
+pytube
+
+# Used for effecient similarity serach and clustering of dense vectors
+faiss_cpu
+ctransformers
+
+# to build the OpenAI whisper model from source code
+git+https://github.com/openai/whisper.git
