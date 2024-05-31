@@ -10,34 +10,8 @@ import time
 import logging
 # from model_add import LlamaCPPInvocationLayer
 
-def download_video(url):
-        yt = YouTube(url)
-        video = yt.streams.filter(abr="160kbps").last()
-
-def intialize_model(model_path):
-    """_summary_: Function in the video uses the llama cpp layer for invocation
-
-    Args:
-        model_path (_type_): _description_
-
-    Returns:
-        _type_: _description_
-    """
-    return PromptModel(model_name_or_path= model_path, use_gpu= True,
-                         max_length= 512)
-
-def initialize_prompt_node(model):
-     summary =  "deepset/summarizaiton"
-     return PromptNode(model_name_or_path= model, default_prompt_template= summary, use_gpu= True)
-
-def transcribe_audio(file_path,  prompt_node):
-     whisper = WhisperTranscriber() #if i dont give th api key, it takes the local implementation
-     pipeline = Pipeline()
-     pipeline.add_node(component= whisper, name="whisper", inputs=["File"])
-     pipeline.add_node(component= prompt_node, name="prompt", inputs=["whisper"])
-     output = pipeline.run(file_paths=[file_path])
-     return output
-
+# Later on replace this with the specfic imports from utils
+from utils import *  
      
 
 
