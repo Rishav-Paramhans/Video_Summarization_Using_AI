@@ -1,3 +1,5 @@
 .venv
 .env
 config.py
+*.mp3
+*.webm
