@@ -82,6 +82,8 @@ def intialize_model(model_name_or_path):
     model = AutoModelForCausalLM.from_pretrained(model_name_or_path, trust_remote_code=True)
     #model = AutoModelForSeq2SeqLM.from_pretrained(model_name_or_path)
     #tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
     return PromptModel(model_name_or_path= model_name_or_path, use_gpu= True,
                          max_length= 512)
 def transcribe_audio(file_path, prompt_node):
@@ -102,56 +104,24 @@ def initialize_prompt_node(model):
 if __name__ == "__main__":
     base_path = os.getcwd()
     #trial to download the video( only audio)
-    video_url= "https://www.youtube.com/watch?v=Aty3Wl390Og" 
+    video_url= "https://www.youtube.com/watch?v=zzKFWwVEQEM" 
       
     # Renaming the YT Video--> Audio file to desired name
     video_title = download_youtube_video(video_url, output_path= ".")
     YT_audio_path = r"{}".format(os.path.join(base_path, video_title))
-    YT_audio_path_rename= os.path.join(base_path, "audio.mp3")
-    if os.path.exists(YT_audio_path_rename):
+    #YT_audio_path_rename= os.path.join(base_path, "audio.mp3")
+    #if os.path.exists(YT_audio_path_rename):
         # delete the exisitng audio file
-        os.remove(YT_audio_path_rename)
-    if os.path.exists(YT_audio_path_rename):
-        print("the file still exists")
-    os.rename(YT_audio_path,YT_audio_path_rename)
+        # os.remove(YT_audio_path_rename)
+    #if os.path.exists(YT_audio_path_rename):
+        # print("the file still exists")
+    #os.rename(YT_audio_path,YT_audio_path_rename)
 
     
-    """
-    # Load Whisper model
-    whisper_model = whisper.load_model("large")
-    print(whisper)
-    #transcription = WhisperTranscription(whisper_model)
-    #output = transcription.run(audio_file_path=YT_audio_path_rename)
-
-
-      
-    # Load LLaMA or a similar model for summarization
-    summarization_model_name = "facebook/bart-large-cnn"  # Example model; replace with actual LLaMA model if available
-    summarization_model = AutoModelForSeq2SeqLM.from_pretrained(summarization_model_name)
-    summarization_tokenizer = AutoTokenizer.from_pretrained(summarization_model_name)  
-
-
-    # Initialize nodes
-    transcription_node = WhisperTranscription(whisper_model)
-    summarization_node = Summarization(summarization_model, summarization_tokenizer)
     
-    # Create the pipeline
-    pipeline = Pipeline()
-    pipeline.add_node(component=transcription_node, name="WhisperTranscription", inputs=["File"])
-    pipeline.add_node(component=summarization_node, name="Summarization", inputs=["WhisperTranscription"])
-    
-    
-    
-    # Run the pipeline
-    result = pipeline.run(audio_file_path)
-    
-    # Print the results
-    print("Transcription:", result["WhisperTranscription"]["text"])
-    print("Summary:", result["Summarization"]["summary"]) 
-    """
     # Example audio file path
-    audio_file_path = YT_audio_path_rename
-    model_name_or_path = "TheBloke/Llama-2-7B-32K-Instruct-GPTQ"
+    audio_file_path = r"D:/Python_Projects/Video_Summarization_Using_AI/x.webm"
+    model_name_or_path = "meta-llama/Llama-2-7b-chat-hf"
     prompt_model = intialize_model(model_name_or_path)
     prompt_node = initialize_prompt_node(model=prompt_model)
 
