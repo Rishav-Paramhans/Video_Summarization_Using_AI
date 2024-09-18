@@ -6,7 +6,7 @@ from haystack import Document
 from io import BytesIO
 from moviepy.editor import AudioFileClip
 import os
-import yt_dlp
+from yt_dlp import YoutubeDL
 from pydub import AudioSegment
 
 # Define the WhisperTranslator component
@@ -16,18 +16,14 @@ class WhisperTranslator:
     A component to translate as well as transcribe the audio data
     """
     @component.output_types(translated_text=dict)
-    def run(self, input_audio:BytesIO):
+    def run(self, extracted_audio_path:str):
         # Load the Whisper model
         model = whisper.load_model("base")
-        # Convert BytesIO to a format Whisper can process
-        audio_segment = AudioSegment.from_file(input_audio, format="mp3")
-        
-        # Export audio segment to a temporary file
-        temp_audio_path = "temp_audio.wav"
-        audio_segment.export(temp_audio_path, format="wav")
-        # Transcribe and translate the audio file
-        result = model.transcribe(temp_audio_path, task="translate")
-        
+        extracted_audio_path= extracted_audio_path.replace("\\", r"/")
+        result = model.transcribe(extracted_audio_path, task="translate")
+        for key, val in result.items():
+            print(key)
+            print(val)
         # Return the translated text
         return result
 
@@ -35,30 +31,28 @@ class WhisperTranslator:
 class AudioExtractor:
     """_summary_: A component to download video from youtube and extracts audio
     """
-    @component.output_types(extracted_audio= BytesIO)
+    @component.output_types(extracted_audio_path= str)
     def run(self, url:str):
         try:
-            # Use yt-dlp to download audio
+            # Setup options for yt-dlp
             ydl_opts = {
                 'format': 'bestaudio/best',
                 'extractaudio': True,  # Download audio only
                 'audioformat': 'mp3',  # Save as mp3
-                'outtmpl': 'temp_audio.mp3',  # Output file path
+                'outtmpl': '%(title)s.mp3',  # Output file path with title as name
             }
-            
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([url])
-            
-            # Read the downloaded audio file into BytesIO
-            with open('temp_audio.mp3', 'rb') as f:
-                audio_data = BytesIO(f.read())
-            # Clean up the temporary file
-            os.remove('temp_audio.mp3')
-            return {"extracted_audio": audio_data}
-        
+
+            # Use yt-dlp to download audio and extract metadata (e.g., title)
+            with YoutubeDL(ydl_opts) as ydl:
+                info_dict = ydl.extract_info(url, download=True)
+                video_title = info_dict.get('title', 'temp_audio')  # Get video title or fallback to temp_audio
+                audio_file_name = f"{video_title}.mp3"  # Construct the filename
+                audio_file_path = os.path.abspath(audio_file_name)  # Get the absolute path
+                print("audio file path", audio_file_path)
+            return {"extracted_audio_path": audio_file_path}
         except Exception as e:
             print(f"Error extracting audio: {e}")
-            return {"extracted_audio": None}
+            return {"extracted_audio_path":None}
 
 
 if __name__ == "__main__":
@@ -74,9 +68,9 @@ if __name__ == "__main__":
     pipeline.add_component(name="audio_extractor", instance=audio_extractor)
     pipeline.add_component(name="whisper_translator", instance= whisper_translator)
 
-    pipeline.connect("audio_extractor","whisper_translator" )
+    pipeline.connect("audio_extractor","whisper_translator")
     #pipeline.draw(path=r"./local_path.png")
     # Run the pipeline
     result = pipeline.run({"url": input_video_url})
     print(result)
-    print(result["whisper_translator"]["text"])
+    #print(result["whisper_translator"]["text"])
