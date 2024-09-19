@@ -1,17 +1,25 @@
-import yt_dlp
+import transformers
+from transformers import AutoModelForCausalLM, AutoTokenizer, AutoModel      
 
-def download_audio(url: str, output_path: str):
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'extractaudio': True,  # Download audio only
-        'audioformat': 'mp3',  # Save as mp3
-        'outtmpl': output_path,  # Output file path
-    }
-    
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        ydl.download([url])
 
-if __name__ == "__main__":
-    url = "https://www.youtube.com/watch?v=F5VQvf5tx_g"
-    output_path = "temp_audio.mp3"
-    download_audio(url, output_path)
+
+model_name = "TheBloke/Llama-2-7B-32K-Instruct-GGUF"
+        
+        
+        
+        
+model = AutoModel.from_pretrained(model_name)
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+# Define the input
+input_text = "Summarize the input text: {}".format(translated_text)
+print("The input text is:", input_text)
+inputs = tokenizer(input_text, return_tensors="pt")
+
+
+
+# Generate text
+outputs = model.generate(inputs['input_ids'], max_length=50)
+# Decode the generated text
+generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+print(generated_text)

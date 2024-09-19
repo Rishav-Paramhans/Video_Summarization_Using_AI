@@ -9,6 +9,10 @@ import os
 from yt_dlp import YoutubeDL
 from pydub import AudioSegment
 import re
+import transformers
+from transformers import AutoModelForCausalLM, AutoTokenizer, AutoModel
+from llama_cpp import Llama
+
 # Define the WhisperTranslator component
 @component
 class WhisperTranslator:
@@ -47,11 +51,41 @@ class AudioExtractor:
                 audio_file_name = 'temp.mp3'
 
                 audio_file_path = os.path.abspath(audio_file_name)  # Get the absolute path
-                print("audio file path", audio_file_path)
+                #print("audio file path", audio_file_path)
             return {"extracted_audio_path": audio_file_path}
         except Exception as e:
             print(f"Error extracting audio: {e}")
             return {"extracted_audio_path":None}
+
+@component
+class Summarizer:
+    """_summary_: A component which takes in the transcript/english-translated text and summarizes it
+    """
+    @component.output_types(summary= str)
+    def run(self, translated_text:dict):
+        """_summary_
+
+        Args:
+            translated_text (str): _description_
+        """
+        # Load the model and tokenizer directly from Hugging Face
+        llm = Llama.from_pretrained(
+	        repo_id="TheBloke/Llama-2-7B-32K-Instruct-GGUF",
+	        filename="llama-2-7b-32k-instruct.Q2_K.gguf",
+            )
+
+
+        # Define the input
+        input_text = "Summarize the input text in 100 words: {}".format(translated_text["whisper_translator"]["text"])
+        
+        # Generate a response from the model
+        response = llm(prompt=input_text, max_length=200)
+
+        # Extract and return the summary from the response
+        summary = response['choices'][0]['text']
+        #print("output type", type(summary))
+        return {"summary": summary}
+
 
 
 if __name__ == "__main__":
@@ -64,12 +98,17 @@ if __name__ == "__main__":
     # Add the WhisperTranslator component to the pipeline
     audio_extractor = AudioExtractor()
     whisper_translator = WhisperTranslator()
+    summarizer = Summarizer()
     pipeline.add_component(name="audio_extractor", instance=audio_extractor)
     pipeline.add_component(name="whisper_translator", instance= whisper_translator)
-
+    pipeline.add_component(name="Summarizer", instance=summarizer)
     pipeline.connect("audio_extractor","whisper_translator")
-    #pipeline.draw(path=r"./local_path.png")
+    pipeline.connect("whisper_translator", "Summarizer")
+    pipeline.draw(path=r"./local_path.png")
     # Run the pipeline
     result = pipeline.run({"url": input_video_url})
+    for key, val in result.items():
+        print(key)
+    #print(result)
 
-    print(result["whisper_translator"]["text"])
+    print(result["whisper_translator"])
