@@ -6,9 +6,14 @@ from haystack import Document
 from io import BytesIO
 from moviepy.editor import AudioFileClip
 import os
-import yt_dlp
+from yt_dlp import YoutubeDL
 from pydub import AudioSegment
-
+import re
+import transformers
+from transformers import AutoModelForCausalLM, AutoTokenizer, AutoModel,  AutoModelForSeq2SeqLM
+from llama_cpp import Llama
+import torch
+from transformers import T5Tokenizer, T5ForConditionalGeneration
 # Define the WhisperTranslator component
 @component
 class WhisperTranslator:
@@ -16,49 +21,111 @@ class WhisperTranslator:
     A component to translate as well as transcribe the audio data
     """
     @component.output_types(translated_text=dict)
-    def run(self, input_audio:BytesIO):
+    def run(self, extracted_audio_path:str):
+        print("Translator started")
         # Load the Whisper model
         model = whisper.load_model("base")
-        # Convert BytesIO to a format Whisper can process
-        audio_segment = AudioSegment.from_file(input_audio, format="mp3")
+        extracted_audio_path= extracted_audio_path.replace("\\", r"/")
+        extracted_audio_path= extracted_audio_path.replace(" ", r"")
+        extracted_audio_path = r"{}".format(extracted_audio_path)
+        translated_text = model.transcribe(extracted_audio_path, task="translate")
         
-        # Export audio segment to a temporary file
-        temp_audio_path = "temp_audio.wav"
-        audio_segment.export(temp_audio_path, format="wav")
-        # Transcribe and translate the audio file
-        result = model.transcribe(temp_audio_path, task="translate")
-        
-        # Return the translated text
-        return result
+        return {"translated_text": translated_text}
 
 @component
 class AudioExtractor:
     """_summary_: A component to download video from youtube and extracts audio
     """
-    @component.output_types(extracted_audio= BytesIO)
+    @component.output_types(extracted_audio_path= str)
     def run(self, url:str):
         try:
-            # Use yt-dlp to download audio
+            print("Audo extarctor started")
+            # Setup options for yt-dlp
             ydl_opts = {
                 'format': 'bestaudio/best',
                 'extractaudio': True,  # Download audio only
                 'audioformat': 'mp3',  # Save as mp3
-                'outtmpl': 'temp_audio.mp3',  # Output file path
+                'outtmpl': 'temp.mp3',  # Output file path with title as name
             }
-            
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([url])
-            
-            # Read the downloaded audio file into BytesIO
-            with open('temp_audio.mp3', 'rb') as f:
-                audio_data = BytesIO(f.read())
-            # Clean up the temporary file
-            os.remove('temp_audio.mp3')
-            return {"extracted_audio": audio_data}
-        
+
+            # Use yt-dlp to download audio and extract metadata (e.g., title)
+            with YoutubeDL(ydl_opts) as ydl:
+                info_dict = ydl.extract_info(url, download=True)
+                
+                audio_file_name = 'temp.mp3'
+
+                audio_file_path = os.path.abspath(audio_file_name)  # Get the absolute path
+                #print("audio file path", audio_file_path)
+            return {"extracted_audio_path": audio_file_path}
         except Exception as e:
             print(f"Error extracting audio: {e}")
-            return {"extracted_audio": None}
+            return {"extracted_audio_path":None}
+
+@component
+class Summarizer:
+    """_summary_: A component which takes in the transcript/english-translated text and summarizes it
+    """
+    @component.output_types(summary= str)
+    def run(self, translated_text:dict):
+        """_summary_
+
+        Args:
+            translated_text (str): _description_
+        """
+        # Load the model and tokenizer directly from Hugging Face
+        llm = Llama.from_pretrained(
+	        repo_id="TheBloke/Llama-2-7B-32K-Instruct-GGUF",
+	        filename="llama-2-7b-32k-instruct.Q5_K_S.gguf",
+            )
+
+
+        # Define the input
+        input_text = "Summarize the input text in 10 words: {}".format(translated_text["text"])
+
+        # Print the translated_text to verify its content
+        print("Translated Text:", translated_text)
+        # Generate a response from the model
+        response = llm(prompt=input_text, max_tokens=32000)
+
+        # Extract and return the summary from the response
+        summary = response['choices'][0]['text']
+
+        print(response)
+        #print("output type", type(summary))
+        return {"summary": summary}
+@component
+class Summarizer2:
+    """_summary_: A component which takes in the transcript/english-translated text and summarizes it
+    """
+    @component.output_types(summary= str)
+    def run(self, translated_text:dict):
+        """_summary_
+
+        Args:
+            translated_text (str): _description_
+        """
+        # Load model directly
+        print("Summarizer initiated")
+
+        #model = AutoModelForCausalLM.from_pretrained("meta-llama/Llama-2-7b-chat-hf")
+        #tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-chat-hf")
+        #model = T5ForConditionalGeneration.from_pretrained("google/flan-t5-large")
+        #tokenizer = T5Tokenizer.from_pretrained("google/flan-t5-large")
+
+        tokenizer = AutoTokenizer.from_pretrained("facebook/bart-large-cnn")
+        model = AutoModelForSeq2SeqLM.from_pretrained("facebook/bart-large-cnn")
+        # Tokenize input with larger context window
+        input_text = r"Summarize the following text in five bullet points: ".format(translated_text["text"])
+        inputs = tokenizer(input_text, return_tensors="pt", max_length=32000, truncation=True)
+
+        # Generate summary using the model
+        output = model.generate(**inputs, max_new_tokens=1024)
+        summary = tokenizer.decode(output[0], skip_special_tokens=True)
+                
+        print(summary)
+        return {"summary": summary}
+
+
 
 
 if __name__ == "__main__":
@@ -66,17 +133,25 @@ if __name__ == "__main__":
     pipeline = Pipeline()
 
     # Input audio file path
-    input_video_url = "https://www.youtube.com/watch?v=1ZwXkw9_Xq8"
+    input_video_url = "https://www.youtube.com/watch?v=vJNjaaylllY"
     
     # Add the WhisperTranslator component to the pipeline
     audio_extractor = AudioExtractor()
     whisper_translator = WhisperTranslator()
+    summarizer = Summarizer2()
     pipeline.add_component(name="audio_extractor", instance=audio_extractor)
     pipeline.add_component(name="whisper_translator", instance= whisper_translator)
-
-    pipeline.connect("audio_extractor","whisper_translator" )
-    #pipeline.draw(path=r"./local_path.png")
+    pipeline.add_component(name="summarizer", instance=summarizer)
+    pipeline.connect("audio_extractor.extracted_audio_path", "whisper_translator.extracted_audio_path")
+    pipeline.connect("whisper_translator.translated_text", "summarizer.translated_text")
+    pipeline.draw(path=r"./local_path.png")
+    print(pipeline)
     # Run the pipeline
     result = pipeline.run({"url": input_video_url})
-    print(result)
-    print(result["whisper_translator"]["text"])
+    #print("Final pipeline result:", result)
+
+    # Access the summary explicitly if not already in the result
+    if 'Summarizer' in result:
+        print("Summary:", result['Summarizer'])
+    else:
+        print("Summarizer output missing.")
