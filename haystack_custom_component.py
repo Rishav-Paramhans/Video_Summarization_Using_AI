@@ -10,10 +10,10 @@ from yt_dlp import YoutubeDL
 from pydub import AudioSegment
 import re
 import transformers
-from transformers import AutoModelForCausalLM, AutoTokenizer, AutoModel
+from transformers import AutoModelForCausalLM, AutoTokenizer, AutoModel,  AutoModelForSeq2SeqLM
 from llama_cpp import Llama
 import torch
-
+from transformers import T5Tokenizer, T5ForConditionalGeneration
 # Define the WhisperTranslator component
 @component
 class WhisperTranslator:
@@ -107,11 +107,15 @@ class Summarizer2:
         # Load model directly
         print("Summarizer initiated")
 
-        model = AutoModelForCausalLM.from_pretrained("TheBloke/Llama-2-7B-32K-Instruct-GGUF")
-        tokenizer = AutoTokenizer.from_pretrained("TheBloke/Llama-2-7B-32K-Instruct-GGUF")
+        #model = AutoModelForCausalLM.from_pretrained("meta-llama/Llama-2-7b-chat-hf")
+        #tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-chat-hf")
+        #model = T5ForConditionalGeneration.from_pretrained("google/flan-t5-large")
+        #tokenizer = T5Tokenizer.from_pretrained("google/flan-t5-large")
 
+        tokenizer = AutoTokenizer.from_pretrained("facebook/bart-large-cnn")
+        model = AutoModelForSeq2SeqLM.from_pretrained("facebook/bart-large-cnn")
         # Tokenize input with larger context window
-        input_text = "Summarize the input text in 10 words: {}".format(translated_text["text"])
+        input_text = r"Summarize the following text in five bullet points: ".format(translated_text["text"])
         inputs = tokenizer(input_text, return_tensors="pt", max_length=32000, truncation=True)
 
         # Generate summary using the model
