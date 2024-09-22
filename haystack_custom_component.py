@@ -14,6 +14,8 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, AutoModel,  AutoMo
 from llama_cpp import Llama
 import torch
 from transformers import T5Tokenizer, T5ForConditionalGeneration
+from transformers import pipeline as hfpipeline
+
 # Define the WhisperTranslator component
 @component
 class WhisperTranslator:
@@ -73,11 +75,11 @@ class Summarizer:
             translated_text (str): _description_
         """
         # Load the model and tokenizer directly from Hugging Face
-        llm = Llama.from_pretrained(
-	        repo_id="TheBloke/Llama-2-7B-32K-Instruct-GGUF",
-	        filename="llama-2-7b-32k-instruct.Q5_K_S.gguf",
-            )
-
+        #llm = Llama.from_pretrained(
+	    #    repo_id="TheBloke/Llama-2-7B-32K-Instruct-GGUF",
+	    #    filename="llama-2-7b-32k-instruct.Q5_K_S.gguf",
+        #    )
+        summarizer = hfpipeline("summarization", model="facebook/bart-large-cnn")
 
         # Define the input
         input_text = "Summarize the input text in 10 words: {}".format(translated_text["text"])
@@ -85,13 +87,11 @@ class Summarizer:
         # Print the translated_text to verify its content
         print("Translated Text:", translated_text)
         # Generate a response from the model
-        response = llm(prompt=input_text, max_tokens=32000)
-
+        #response = llm(prompt=input_text, max_tokens=32000)
+        response = summarizer(input_text, max_length=250, min_length=30, do_sample=False)
         # Extract and return the summary from the response
-        summary = response['choices'][0]['text']
+        summary = response['choices'][0]['summary_text']
 
-        print(response)
-        #print("output type", type(summary))
         return {"summary": summary}
 @component
 class Summarizer2:
@@ -138,20 +138,15 @@ if __name__ == "__main__":
     # Add the WhisperTranslator component to the pipeline
     audio_extractor = AudioExtractor()
     whisper_translator = WhisperTranslator()
-    summarizer = Summarizer2()
+    summarizer = Summarizer()
     pipeline.add_component(name="audio_extractor", instance=audio_extractor)
     pipeline.add_component(name="whisper_translator", instance= whisper_translator)
     pipeline.add_component(name="summarizer", instance=summarizer)
     pipeline.connect("audio_extractor.extracted_audio_path", "whisper_translator.extracted_audio_path")
     pipeline.connect("whisper_translator.translated_text", "summarizer.translated_text")
-    pipeline.draw(path=r"./local_path.png")
+    pipeline.draw(path=r"./assets/Summarisation_Pipeline.png")
     print(pipeline)
     # Run the pipeline
     result = pipeline.run({"url": input_video_url})
     #print("Final pipeline result:", result)
-
-    # Access the summary explicitly if not already in the result
-    if 'Summarizer' in result:
-        print("Summary:", result['Summarizer'])
-    else:
-        print("Summarizer output missing.")
+    print("result", result)
