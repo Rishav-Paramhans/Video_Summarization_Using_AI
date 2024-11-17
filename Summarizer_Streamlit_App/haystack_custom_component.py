@@ -90,7 +90,13 @@ class Summarizer:
         model.to(device)  # Move the model to GPU or CPU
 
         # Define the input (assuming 'translated_text' is a dictionary with a 'text' key)
-        input_text = f"Summarize the input text in 250 words: {translated_text['text']}"
+        #input_text = f"Summarize the input text in 250 words: Input: {translated_text['text']}, Summary"
+        input_text = (
+            f"Summarize the following input text in up to 250 words, organized as a bulleted list "
+            f"with up to 10 key points. Ensure each point is concise and informative. "
+            f"Input text: {translated_text['text']}"
+            f"Summary:"
+        )
 
         # Tokenize the input text and move the tokenized tensors to the correct device
         inputs = tokenizer(input_text, return_tensors="pt")

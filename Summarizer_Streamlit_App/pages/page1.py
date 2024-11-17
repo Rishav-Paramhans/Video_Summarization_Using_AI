@@ -13,13 +13,14 @@ def main():
     # Set the title and background color
     st.title("YouTube Video Summarizer 🎥")
     st.markdown('<style>h1{color: orange; text-align: center;}</style>', unsafe_allow_html=True)
-    st.subheader('Built with the Llama 2 🦙, Haystack, Streamlit and ❤️')
+    st.subheader('Built with the Llama 3.2 🦙, Haystack, Streamlit')
     st.markdown('<style>h3{color: pink;  text-align: center;}</style>', unsafe_allow_html=True)
 
     # Expander for app details
     with st.expander("About the App"):
-        st.write("This app allows you to summarize while watching a YouTube video.")
-        st.write("Enter a YouTube URL in the input box below and click 'Submit' to start. This app is built by AI Anytime.")
+        st.write("Your personal Youtube Video Summarizer- Fully Open Source")
+        st.write("Enter a YouTube URL in the input box below and click 'Submit' to start. This app is built by Rishav to"
+                 " increase productivity")
 
     # Input box for YouTube URL
     youtube_url = st.text_input("Enter YouTube URL")
@@ -42,7 +43,7 @@ def main():
         # Column 2: Summary View
         with col2:
             st.header("Summarization of YouTube Video")
-            st.write(output["summarizer"]["summary"][0])
+            st.write(output["summarizer"]["summary"])
             #st.success(output["summarizer"][0].split("\n\n[INST]")[0])
             st.write(f"Time taken: {elapsed_time:.2f} seconds")
 
